@@ -2,6 +2,8 @@ const { DataSource } = require('typeorm')
 const config = require('../config/index')
 
 const CreditPackage = require('../entities/CreditPackages')
+const CreditPurchase = require('../entities/CreditPurchase')
+const CourseBooking = require('../entities/CourseBooking')
 const Skill = require('../entities/Skills')
 const User = require('../entities/User')
 const Course = require('../entities/Course')
@@ -18,10 +20,12 @@ const dataSource = new DataSource({
   poolSize: 10,
   entities: [
     CreditPackage,
+    CreditPurchase,
+    CourseBooking,
     Skill,
     User,
     Course,
-    Coach
+    Coach,
   ],
   ssl: config.get('db.ssl')
 })

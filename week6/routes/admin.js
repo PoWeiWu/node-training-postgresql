@@ -1,46 +1,39 @@
 const express = require('express')
 
 const router = express.Router()
+const config = require('../config/index')
 const { dataSource } = require('../db/data-source')
-const logger = require('../utils/logger')('Admin')
 
-function isUndefined (value) {
+const logger = require('../utils/logger')('Admin')
+const auth = require('../middlewares/auth')({
+  secret: config.get('secret').jwtSecret,
+  userRepository: dataSource.getRepository('User'),
+  logger
+})
+const isCoach = require('../middlewares/isCoach')
+
+function isUndefined(value) {
   return value === undefined
 }
 
-function isNotValidSting (value) {
+function isNotValidSting(value) {
   return typeof value !== 'string' || value.trim().length === 0 || value === ''
 }
 
-function isNotValidInteger (value) {
+function isNotValidInteger(value) {
   return typeof value !== 'number' || value < 0 || value % 1 !== 0
 }
 
-//取得課程列表
-router.get('/courses', async (req, res, next) => {
+// 新增課程資料
+router.post('/coaches/courses', auth, isCoach, async (req, res, next) => {
   try {
-    const courseRepo = dataSource.getRepository('Course')
-    const courses = await courseRepo.find({
-      select: ['id', 'name', 'description', 'start_at', 'end_at', 'max_participants', 'meeting_url']
-    })
-    res.status(200).json({
-      status: 'success',
-      data: courses
-    })
-  } catch (error) {
-    logger.error(error)
-    next(error)
-  }
-})
-
-router.post('/coaches/courses', async (req, res, next) => {
-  try {
+    const { id } = req.user
     const {
-      user_id: userId, skill_id: skillId, name, description, start_at: startAt, end_at: endAt,
+      skill_id: skillId, name, description, start_at: startAt, end_at: endAt,
       max_participants: maxParticipants, meeting_url: meetingUrl
     } = req.body
-    if (isUndefined(userId) || isNotValidSting(userId) ||
-      isUndefined(skillId) || isNotValidSting(skillId) ||
+
+    if (isUndefined(skillId) || isNotValidSting(skillId) ||
       isUndefined(name) || isNotValidSting(name) ||
       isUndefined(description) || isNotValidSting(description) ||
       isUndefined(startAt) || isNotValidSting(startAt) ||
@@ -54,29 +47,10 @@ router.post('/coaches/courses', async (req, res, next) => {
       })
       return
     }
-    const userRepository = dataSource.getRepository('User')
-    const existingUser = await userRepository.findOne({
-      select: ['id', 'name', 'role'],
-      where: { id: userId }
-    })
-    if (!existingUser) {
-      logger.warn('使用者不存在')
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者不存在'
-      })
-      return
-    } else if (existingUser.role !== 'COACH') {
-      logger.warn('使用者尚未成為教練')
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者尚未成為教練'
-      })
-      return
-    }
+
     const courseRepo = dataSource.getRepository('Course')
     const newCourse = courseRepo.create({
-      user_id: userId,
+      user_id: id,
       skill_id: skillId,
       name,
       description,
@@ -85,6 +59,7 @@ router.post('/coaches/courses', async (req, res, next) => {
       max_participants: maxParticipants,
       meeting_url: meetingUrl
     })
+
     const savedCourse = await courseRepo.save(newCourse)
     const course = await courseRepo.findOne({
       where: { id: savedCourse.id }
@@ -101,13 +76,16 @@ router.post('/coaches/courses', async (req, res, next) => {
   }
 })
 
-router.put('/coaches/courses/:courseId', async (req, res, next) => {
+// 編輯課程資料
+router.put('/coaches/courses/:courseId', auth, isCoach, async (req, res, next) => {
   try {
+    const { id } = req.user
     const { courseId } = req.params
     const {
       skill_id: skillId, name, description, start_at: startAt, end_at: endAt,
       max_participants: maxParticipants, meeting_url: meetingUrl
     } = req.body
+
     if (isNotValidSting(courseId) ||
       isUndefined(skillId) || isNotValidSting(skillId) ||
       isUndefined(name) || isNotValidSting(name) ||
@@ -125,8 +103,9 @@ router.put('/coaches/courses/:courseId', async (req, res, next) => {
     }
     const courseRepo = dataSource.getRepository('Course')
     const existingCourse = await courseRepo.findOne({
-      where: { id: courseId }
+      where: { id: courseId, user_id: id }
     })
+
     if (!existingCourse) {
       logger.warn('課程不存在')
       res.status(400).json({
