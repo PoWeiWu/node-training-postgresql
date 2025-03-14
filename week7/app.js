@@ -5,11 +5,11 @@ const pinoHttp = require('pino-http')
 
 const logger = require('./utils/logger')('App')
 const creditPackageRouter = require('./routes/creditPackage')
-const userRouter = require('./routes/user')
-const adminRouter = require('./routes/admin')
-const skillRouter = require('./routes/skills')
+const userRouter = require('./routes/users')
+const adminRouter = require('./routes/admin')         
+// const skillRouter = require('./routes/skills')
 const coachRouter = require('./routes/coaches')
-const courseRouter = require('./routes/course')
+const courseRouter = require('./routes/courses')
 
 const app = express()
 app.use(cors())
@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: false }))
 app.use(pinoHttp({
   logger,
   serializers: {
-    req (req) {
+    req(req) {
       req.body = req.raw.body
       return req
     }
@@ -33,7 +33,7 @@ app.get('/healthcheck', (req, res) => {
 app.use('/api/credit-package', creditPackageRouter)
 app.use('/api/users', userRouter)
 app.use('/api/admin', adminRouter)
-app.use('/api/skills', skillRouter)
+// app.use('/api/skills', skillRouter)
 app.use('/api/courses', courseRouter)
 app.use('/api/coaches', coachRouter)
 
